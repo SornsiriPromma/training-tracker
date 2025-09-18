@@ -1,0 +1,60 @@
+﻿import mysql from 'mysql2/promise';
+
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'training_tracker',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+};
+
+// Create connection pool only if database is configured
+let pool: mysql.Pool | null = null;
+
+try {
+  // Only create pool if we have database credentials
+  if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD) {
+    pool = mysql.createPool(dbConfig);
+    console.log('Database connection pool created');
+  } else {
+    console.log('Database not configured - running without database');
+  }
+} catch (error) {
+  console.log('Database connection failed - running without database:', error);
+}
+
+// Database connection helper
+export const db = {
+  async query(sql: string, params?: any[]) {
+    if (!pool) {
+      throw new Error('Database not configured. Please set up MySQL or add database credentials to .env');
+    }
+    try {
+      const [rows] = await pool.execute(sql, params);
+      return rows;
+    } catch (error) {
+      console.error('Database query error:', error);
+      throw error;
+    }
+  },
+
+  async getConnection() {
+    if (!pool) {
+      throw new Error('Database not configured. Please set up MySQL or add database credentials to .env');
+    }
+    return await pool.getConnection();
+  },
+
+  async end() {
+    if (pool) {
+      await pool.end();
+    }
+  }
+};
+
+// Export pool for direct access if needed
+export { pool };
